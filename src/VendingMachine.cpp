@@ -1,5 +1,6 @@
 #include "VendingMachine.hpp"
 #include <iostream>
+#include <memory>
 
 VendingMachine::VendingMachine() {
     for (Cash::Denomination denom : Cash::getDenominations()) {
@@ -7,31 +8,44 @@ VendingMachine::VendingMachine() {
     }
 }
 
-void VendingMachine::addBeverage(const Beverage& beverage) {
-    m_Beverages[beverage.getName()] = std::make_shared<Beverage>(beverage);
+void VendingMachine::addBeverage(std::unique_ptr<Beverage> beverage, int quantity) {
+    m_Beverages[std::move(beverage)] = quantity;
 }
 
 void VendingMachine::removeBeverage(const std::string& name) {
-    m_Beverages.erase(name);
+    for (auto it = m_Beverages.begin(); it != m_Beverages.end(); ++it) {
+        if (it->first->getName() == name) {
+            m_Beverages.erase(it);
+            return;
+        }
+    }
+    std::cout << "Beverage " << name << " not found." << std::endl;
 }
 
 void VendingMachine::displayBeverages() const {
     std::cout << "Available Beverages:" << std::endl;
-    for (const auto& [name, beveragePtr] : m_Beverages) {
-        std::cout << beveragePtr->getName() << " - " << beveragePtr->getPrice() << " KRW" << std::endl;
+    for (const auto& [beveragePtr, quantity] : m_Beverages) {
+        std::cout << beveragePtr->getName() << " - " << beveragePtr->getPrice() << " KRW, Quantity: " << quantity << std::endl;
     }
 }
 
 bool VendingMachine::selectBeverage(const std::string& name) {
-    auto it = m_Beverages.find(name);
-    if (it != m_Beverages.end() && getTotalBalance() >= it->second->getPrice()) {
-        deductBalance(it->second->getPrice());
-        std::cout << "Dispensing " << name << std::endl;
-        return true;
-    } else {
-        std::cout << "Insufficient balance or beverage not found." << std::endl;
-        return false;
+    for (auto& [beveragePtr, quantity] : m_Beverages) {
+        if (beveragePtr->getName() == name) {
+            if (getTotalBalance() >= beveragePtr->getPrice()) {
+                deductBalance(beveragePtr->getPrice());
+                quantity--;
+                std::cout << "Dispensing " << name << std::endl;
+                if (quantity <= 0) m_Beverages.erase(beveragePtr); // Remove if quantity is zero
+                return true;
+            } else {
+                std::cout << "Insufficient balance for " << name << std::endl;
+                return false;
+            }
+        }
     }
+    std::cout << "Beverage " << name << " not found." << std::endl;
+    return false;
 }
 
 void VendingMachine::addBalance(const Cash& cash) {
@@ -82,4 +96,3 @@ void VendingMachine::deductBalance(int amount) {
         }
     }
 }
-

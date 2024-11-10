@@ -7,7 +7,7 @@
 
 class VendingMachine {
 private:
-    std::unordered_map<std::string, std::shared_ptr<Beverage>> m_Beverages;
+    std::unordered_map<std::unique_ptr<Beverage>, int> m_Beverages;
     std::unordered_map<Cash::Denomination, int> m_CashBalance;
 
     int getTotalBalance() const;
@@ -15,7 +15,7 @@ private:
 
 public:
     VendingMachine();
-    void addBeverage(const Beverage& beverage);
+    void addBeverage(std::unique_ptr<Beverage> beverage, int quantity);
     void removeBeverage(const std::string& name);
     void displayBeverages() const;
     bool selectBeverage(const std::string& name);

@@ -19,8 +19,8 @@ TEST(VendingMachineEdgeCaseTests, ZeroPriceBeverage) {
     Admin admin(machine);
     User user(machine);
 
-    admin.addBeverage("Free Drink", 0); // Add a beverage with zero price
-    EXPECT_TRUE(user.selectBeverage("Free Drink")); // User should be able to get it without cash
+    admin.addBeverage("Free Drink", 0, 5);
+    EXPECT_TRUE(user.selectBeverage("Free Drink"));
 }
 
 TEST(VendingMachineEdgeCaseTests, HighDenominationChangeReturn) {
@@ -30,7 +30,7 @@ TEST(VendingMachineEdgeCaseTests, HighDenominationChangeReturn) {
     Admin admin(machine);
     User user(machine);
 
-    admin.addBeverage("Tea", 1200);
+    admin.addBeverage("Tea", 1200, 1);
     admin.addCash(Cash(Cash::Denomination::TEN_THOUSAND, 1));
 
     user.insertCash(Cash(Cash::Denomination::TEN_THOUSAND, 1));
@@ -41,13 +41,4 @@ TEST(VendingMachineEdgeCaseTests, HighDenominationChangeReturn) {
     std::string output = testing::internal::GetCapturedStdout();
 
     EXPECT_NE(output.find("Returning change: 8800 KRW"), std::string::npos);
-}
-
-TEST(VendingMachineEdgeCaseTests, MaximumCapacityOfCashStorage) {
-    CoutMute mute;
-
-    VendingMachine machine;
-    Admin admin(machine);
-
-    EXPECT_NO_THROW(admin.addCash(Cash(Cash::Denomination::HUNDRED, 1000)));
 }

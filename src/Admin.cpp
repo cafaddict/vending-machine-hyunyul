@@ -1,8 +1,11 @@
 #include "Admin.hpp"
-#include <iostream>
+#include "Beverage.hpp"
 
-void Admin::addBeverage(const std::string& name, int price) {
-    m_VendingMachine.addBeverage(Beverage(name, price));
+Admin::Admin(VendingMachine& machine) : m_VendingMachine(machine) {}
+
+void Admin::addBeverage(const std::string& name, int price, int quantity) {
+    auto beverage = std::make_unique<Beverage>(name, price);
+    m_VendingMachine.addBeverage(std::move(beverage), quantity);
 }
 
 void Admin::removeBeverage(const std::string& name) {
@@ -16,4 +19,3 @@ void Admin::addCash(const Cash& cash) {
 void Admin::removeCash(const Cash& cash) {
     m_VendingMachine.removeBalance(cash);
 }
-

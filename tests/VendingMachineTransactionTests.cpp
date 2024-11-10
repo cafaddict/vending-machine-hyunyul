@@ -18,12 +18,11 @@ TEST(VendingMachineTransactionTests, PurchaseWithExactChange) {
     Admin admin(machine);
     User user(machine);
 
-    admin.addBeverage("Water", 1000);
+    admin.addBeverage("Water", 1000, 10);
     admin.addCash(Cash(Cash::Denomination::THOUSAND, 5));
 
     user.insertCash(Cash(Cash::Denomination::THOUSAND, 1));
     EXPECT_TRUE(user.selectBeverage("Water"));
-    user.getChange();
 }
 
 TEST(VendingMachineTransactionTests, InsufficientBalance) {
@@ -33,24 +32,26 @@ TEST(VendingMachineTransactionTests, InsufficientBalance) {
     Admin admin(machine);
     User user(machine);
 
-    admin.addBeverage("Coffee", 2000);
+    admin.addBeverage("Coffee", 2000, 5);
 
     user.insertCash(Cash(Cash::Denomination::THOUSAND, 1));
     EXPECT_FALSE(user.selectBeverage("Coffee"));
 }
 
-TEST(VendingMachineTransactionTests, InsertCashAfterInsufficientBalance) {
+TEST(VendingMachineTransactionTests, ReturnChange) {
     CoutMute mute;
 
     VendingMachine machine;
     Admin admin(machine);
     User user(machine);
 
-    admin.addBeverage("Snack", 1500);
-
+    admin.addCash(Cash(Cash::Denomination::THOUSAND, 3));
     user.insertCash(Cash(Cash::Denomination::THOUSAND, 1));
-    EXPECT_FALSE(user.selectBeverage("Snack"));
 
-    user.insertCash(Cash(Cash::Denomination::FIVE_HUNDRED, 1));
-    EXPECT_TRUE(user.selectBeverage("Snack"));
+    // Capture and verify output
+    testing::internal::CaptureStdout();
+    user.getChange();
+    std::string output = testing::internal::GetCapturedStdout();
+
+    EXPECT_NE(output.find("Returning change: 1000 KRW"), std::string::npos);
 }

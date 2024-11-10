@@ -4,28 +4,14 @@ project(VendingMachineProject)
 # Specify C++ standard
 set(CMAKE_CXX_STANDARD 17)
 
-# Include directories
+# Include directories for header files
 include_directories(include)
 
-# Define application sources, excluding main.cpp for the library
-file(GLOB APP_SOURCES "src/*.cpp")
-list(REMOVE_ITEM APP_SOURCES "${CMAKE_SOURCE_DIR}/src/main.cpp") # Exclude main.cpp
-
-# Set output directories for all configurations
+# Set the output directory for the binaries
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 
-# Create a static library from the application source files
-add_library(VendingMachineLib STATIC ${APP_SOURCES})
-
-# Create main executable
-add_executable(VendingMachineProject src/main.cpp)
-
-# Link the executable against the library
-target_link_libraries(VendingMachineProject PRIVATE VendingMachineLib)
+# Add the src directory
+add_subdirectory(src)
 
 # Enable testing
 enable_testing()
@@ -45,15 +31,10 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 # Download and add gtest
 FetchContent_MakeAvailable(googletest)
 
-# Add test source files
-set(TEST_SOURCES
-    tests/VendingMachineBasicTests.cpp
-    tests/VendingMachineTransactionTests.cpp
-    tests/VendingMachineAdminTests.cpp
-    tests/VendingMachineEdgeCaseTests.cpp
-)
+# Collect all test sources
+file(GLOB TEST_SOURCES "tests/*.cpp")
 
-# Create test executable
+# Create the test executable
 add_executable(VendingMachineTests ${TEST_SOURCES})
 
 # Link the test executable against the library and gtest
@@ -62,7 +43,6 @@ target_link_libraries(VendingMachineTests PRIVATE VendingMachineLib gtest_main)
 # Add include directories for the tests
 target_include_directories(VendingMachineTests PRIVATE include)
 
-# Add tests
+# Register the test executable with CTest
 add_test(NAME VendingMachineTest COMMAND VendingMachineTests)
 set_tests_properties(VendingMachineTest PROPERTIES WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
-
