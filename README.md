@@ -42,8 +42,8 @@ Ensure the following are installed:
 1. **Clone the Repository:**
 
     ```sh
-    git clone <repository-url>
-    cd vending-machine-project
+    git clone https://github.com/cafaddict/vending-machine-hyunyul.git
+    cd vending-machine-hyunyul
     ```
 
 2. **Create a Build Directory and Configure the Project:**
