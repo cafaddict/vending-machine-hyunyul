@@ -1,6 +1,7 @@
 #include "VendingMachine.hpp"
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 
 VendingMachine::VendingMachine() {
     for (Cash::Denomination denom : Cash::getDenominations()) {
@@ -8,91 +9,225 @@ VendingMachine::VendingMachine() {
     }
 }
 
-void VendingMachine::addBeverage(std::unique_ptr<Beverage> beverage, int quantity) {
-    m_Beverages[std::move(beverage)] = quantity;
+// Occupancy control
+bool VendingMachine::acquireOccupancy() {
+    if (m_IsOccupied ) {
+        return false;
+    }
+
+    if (m_OutOfOrder) {
+        std::cerr << "Vending machine is out of order." << std::endl;
+        return false;
+    }
+
+    m_IsOccupied = true;
+    return true;
 }
 
-void VendingMachine::removeBeverage(const std::string& name) {
+void VendingMachine::releaseOccupancy() {
+    m_IsOccupied = false;
+}
+
+// Reset transaction state
+void VendingMachine::resetTransaction() {
+    m_UserInsertedAmount = 0;
+    m_SelectedItemPrice = 0;
+}
+
+// Add beverage with quantity
+bool VendingMachine::addBeverage(std::unique_ptr<Beverage> beverage, int quantity) {
+    if (!beverage) {
+        std::cerr << "Invalid beverage." << std::endl;
+        return false;
+    }
+
+    // Check if beverage already exists in the inventory
+    for (auto& [existingBeverage, existingQuantity] : m_Beverages) {
+        if (existingBeverage->getName() == beverage->getName()) {
+            existingQuantity += quantity;  // Add to existing quantity
+            return true;
+        }
+    }
+
+    // If beverage doesn't exist, add it to the inventory
+    m_Beverages[std::move(beverage)] = quantity;
+    return true;
+}
+
+
+// Remove beverage by name
+bool VendingMachine::removeBeverage(const std::string& name) {
     for (auto it = m_Beverages.begin(); it != m_Beverages.end(); ++it) {
         if (it->first->getName() == name) {
             m_Beverages.erase(it);
-            return;
+            return true;
         }
     }
-    std::cout << "Beverage " << name << " not found." << std::endl;
+    std::cerr << "Beverage " << name << " not found." << std::endl;
+    return false;
 }
 
+// Display available beverages and quantities
 void VendingMachine::displayBeverages() const {
     std::cout << "Available Beverages:" << std::endl;
     for (const auto& [beveragePtr, quantity] : m_Beverages) {
-        std::cout << beveragePtr->getName() << " - " << beveragePtr->getPrice() << " KRW, Quantity: " << quantity << std::endl;
+        std::cout << beveragePtr->getName() << " - " << beveragePtr->getPrice()
+                  << " KRW, Quantity: " << quantity << std::endl;
     }
 }
 
+// Select beverage with cash
 bool VendingMachine::selectBeverage(const std::string& name) {
-    for (auto& [beveragePtr, quantity] : m_Beverages) {
-        if (beveragePtr->getName() == name) {
-            if (getTotalBalance() >= beveragePtr->getPrice()) {
-                deductBalance(beveragePtr->getPrice());
-                quantity--;
+    for (auto& [beverage, quantity] : m_Beverages) {
+        if (beverage->getName() == name) {
+            if (quantity <= 0) {
+                std::cerr << "Sorry, " << name << " is out of stock." << std::endl;
+                return false;
+            }
+            if (m_UserInsertedAmount >= beverage->getPrice()) {
+                m_SelectedItemPrice = beverage->getPrice();
+                m_UserInsertedAmount -= m_SelectedItemPrice;
+                quantity--; // Decrement quantity
                 std::cout << "Dispensing " << name << std::endl;
-                if (quantity <= 0) m_Beverages.erase(beveragePtr); // Remove if quantity is zero
                 return true;
             } else {
-                std::cout << "Insufficient balance for " << name << std::endl;
+                std::cerr << "Insufficient cash balance for " << name << std::endl;
                 return false;
             }
         }
     }
-    std::cout << "Beverage " << name << " not found." << std::endl;
+    std::cerr << "Beverage " << name << " not found." << std::endl;
     return false;
 }
 
-void VendingMachine::addBalance(const Cash& cash) {
+// Select beverage with card
+bool VendingMachine::selectBeverageWithCard(const std::string& name, int cardBalance) {
+    for (auto& [beverage, quantity] : m_Beverages) {
+        if (beverage->getName() == name) {
+            if (quantity <= 0) {
+                std::cerr << "Sorry, " << name << " is out of stock." << std::endl;
+                return false;
+            }
+            if (cardBalance >= beverage->getPrice()) {
+                m_SelectedItemPrice = beverage->getPrice();
+                quantity--; // Decrement quantity
+                std::cout << "Dispensing " << name << " (Paid with Card)" << std::endl;
+                return true;
+            } else {
+                std::cerr << "Insufficient card balance for " << name << std::endl;
+                return false;
+            }
+        }
+    }
+    std::cerr << "Beverage " << name << " not found." << std::endl;
+    return false;
+}
+
+// Add user cash
+bool VendingMachine::addBalance(const Cash& cash) {
+    m_UserInsertedAmount += cash.getQuantity() * cash.getDenomination();
     m_CashBalance[cash.getDenomination()] += cash.getQuantity();
-    std::cout << "Added " << cash.getQuantity() << " of " << cash.getDenomination() << " KRW" << std::endl;
+    return true;
 }
 
-void VendingMachine::removeBalance(const Cash& cash) {
-    if (m_CashBalance[cash.getDenomination()] >= cash.getQuantity()) {
-        m_CashBalance[cash.getDenomination()] -= cash.getQuantity();
-        std::cout << "Removed " << cash.getQuantity() << " of " << cash.getDenomination() << " KRW" << std::endl;
+// Check if exact change is possible
+bool VendingMachine::canReturnExactChange(int amount) const {
+    int change = amount;
+    for (auto it = m_CashBalance.rbegin(); it != m_CashBalance.rend(); ++it) {
+        Cash::Denomination denom = it->first;
+        int count = it->second;
+
+        int numNotes = std::min(change / denom, count);
+        change -= numNotes * denom;
+        if (change == 0) break;
+    }
+    return change == 0;
+}
+
+// Return change
+bool VendingMachine::returnChange() {
+    int change = m_UserInsertedAmount;
+    std::cout << "Returning change of " << change << " KRW." << std::endl;
+    if (!canReturnExactChange(change)) {
+        std::cerr << "Unable to provide exact change." << std::endl;
+        std::cerr << "Please contact the admin for a refund." << std::endl;
+        resetTransaction(); // Reset for next transaction
+        return false;
+    }
+    std::map<Cash::Denomination, int> changeToGive;
+
+    for (auto it = m_CashBalance.rbegin(); it != m_CashBalance.rend(); ++it) {
+        Cash::Denomination denom = it->first;
+        int count = it->second;
+
+        if (change >= denom) {
+            int numNotes = std::min(change / denom, count);
+            change -= numNotes * denom;
+            changeToGive[denom] = numNotes;
+        }
+    }
+
+    for (const auto& [denom, numNotes] : changeToGive) {
+        m_CashBalance[denom] -= numNotes;
+        if (numNotes > 0) {
+            std::cout << "Returned " << numNotes << " of " << denom << " KRW" << std::endl;
+        }
+    }
+    
+    resetTransaction(); // Reset for next transaction
+    return true;
+    
+}
+
+// Remove specific cash denomination
+bool VendingMachine::removeCash(const Cash& cash) {
+    Cash::Denomination denom = cash.getDenomination();
+    int quantity = cash.getQuantity();
+
+    if (m_CashBalance[denom] >= quantity) {
+        m_CashBalance[denom] -= quantity; // Deduct cash directly from the denomination
+        std::cout << "Removed " << quantity << " of " << denom << " KRW.\n";
+        return true;
     } else {
-        std::cout << "Not enough cash of this denomination to remove." << std::endl;
+        std::cerr << "Not enough cash of this denomination to remove." << std::endl;
+        return false;
     }
 }
 
-void VendingMachine::returnChange() {
-    int totalBalance = getTotalBalance();
-    std::cout << "Returning change: " << totalBalance << " KRW" << std::endl;
-
-    for (Cash::Denomination denom : Cash::getDenominations()) {
-        int count = 0;
-        while (totalBalance >= denom && m_CashBalance[denom] > 0) {
-            totalBalance -= denom;
-            m_CashBalance[denom]--;
-            count++;
-        }
-        if (count > 0) {
-            std::cout << "Returned " << count << " of " << denom << " KRW" << std::endl;
-        }
-    }
-}
-
-int VendingMachine::getTotalBalance() const {
-    int total = 0;
-    for (const auto& [denom, count] : m_CashBalance) {
-        total += denom * count;
-    }
-    return total;
-}
-
+// Private helper to deduct an amount from the total balance
 void VendingMachine::deductBalance(int amount) {
-    int remaining = amount;
-    for (Cash::Denomination denom : Cash::getDenominations()) {
-        while (remaining >= denom && m_CashBalance[denom] > 0) {
-            remaining -= denom;
-            m_CashBalance[denom]--;
+    for (auto it = m_CashBalance.rbegin(); it != m_CashBalance.rend(); ++it) {
+        Cash::Denomination denom = it->first;
+        int denomValue = static_cast<int>(denom);
+
+        while (amount >= denomValue && it->second > 0) {
+            amount -= denomValue;
+            --it->second;
+        }
+        if (amount == 0) break;
+    }
+}
+
+// Get the price of a specific beverage by name
+int VendingMachine::getBeveragePrice(const std::string& name) const {
+    for (const auto& [beveragePtr, quantity] : m_Beverages) {
+        if (beveragePtr->getName() == name) {
+            return beveragePtr->getPrice();
         }
     }
+    std::cerr << "Beverage not found" << std::endl;
+    return 0;
+    // throw std::runtime_error("Beverage not found");
+}
+
+// Get the quantity of a specific beverage by name
+int VendingMachine::getBevQuantity(const std::string& name) const {
+    for (const auto& [beveragePtr, quantity] : m_Beverages) {
+        if (beveragePtr->getName() == name) {
+            return quantity;
+        }
+    }
+    std::cerr << "Beverage not found" << std::endl;
+    return 0;
+    // throw std::runtime_error("Beverage not found");
 }

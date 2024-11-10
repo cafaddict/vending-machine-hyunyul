@@ -1,7 +1,6 @@
 #pragma once
-#include <stdexcept>
-#include <vector>
 
+#include <vector>
 class Cash {
 public:
     enum Denomination {
@@ -17,18 +16,15 @@ private:
     int m_Quantity;
 
 public:
-    Cash(Denomination denom, int qty = 1) {
-        if (qty <= 0) {
-            throw std::invalid_argument("Quantity must be positive");
-        }
-        m_Denomination = denom;
-        m_Quantity = qty;
-    }
+    Cash(Denomination denom, int quantity);
 
-    Denomination getDenomination() const { return m_Denomination; }
-    int getQuantity() const { return m_Quantity; }
+    Denomination getDenomination() const;
+    int getQuantity() const;
+    static bool isValidDenomination(int amount);
 
     static std::vector<Denomination> getDenominations() {
-        return { TEN_THOUSAND, FIVE_THOUSAND, THOUSAND, FIVE_HUNDRED, HUNDRED };
+
+        return { Denomination::HUNDRED, Denomination::FIVE_HUNDRED, Denomination::THOUSAND, Denomination::FIVE_THOUSAND, Denomination::TEN_THOUSAND };
+
     }
 };

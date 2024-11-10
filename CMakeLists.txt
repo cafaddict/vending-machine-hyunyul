@@ -3,11 +3,12 @@ project(VendingMachineProject)
 
 # Specify C++ standard
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Include directories for header files
 include_directories(include)
 
-# Set the output directory for the binaries
+# Set the output directory for binaries
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 # Add the src directory
@@ -28,7 +29,7 @@ FetchContent_Declare(
 # Prevent overriding the parent project's compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
-# Download and add gtest
+# Download and make Google Test available
 FetchContent_MakeAvailable(googletest)
 
 # Collect all test sources
@@ -37,7 +38,7 @@ file(GLOB TEST_SOURCES "tests/*.cpp")
 # Create the test executable
 add_executable(VendingMachineTests ${TEST_SOURCES})
 
-# Link the test executable against the library and gtest
+# Link the test executable against the library and Google Test
 target_link_libraries(VendingMachineTests PRIVATE VendingMachineLib gtest_main)
 
 # Add include directories for the tests

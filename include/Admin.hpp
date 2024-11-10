@@ -1,6 +1,8 @@
 #pragma once
+
 #include "VendingMachine.hpp"
-#include <memory>
+#include "Cash.hpp"
+#include <string>
 
 class Admin {
 private:
@@ -9,11 +11,10 @@ private:
 public:
     Admin(VendingMachine& machine);
 
-    void addBeverage(const std::string& name, int price, int quantity);
-    void removeBeverage(const std::string& name);
-
-    void addCash(const Cash& cash);
-    void removeCash(const Cash& cash);
+    bool arriveAtMachine();
+    void leaveMachine();
+    bool addBeverage(const std::string& name, int price, int quantity);
+    bool removeBeverage(const std::string& name);
+    bool addCash(const Cash& cash);
+    bool removeCash(const Cash& cash);
 };
-
-
