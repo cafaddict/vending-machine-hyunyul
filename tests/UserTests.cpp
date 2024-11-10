@@ -236,3 +236,155 @@ TEST(UserTests, UnableToProvideExactChange) {
 
     user.leaveMachine();
 }
+
+TEST(UserTests, TotalCashAfterStandardPurchase) {
+    CoutMute mute;
+
+    VendingMachine machine;
+    Admin admin(machine);
+
+    // Setup: Add cash and beverage
+    admin.arriveAtMachine();
+    admin.addBeverage("Water", 600, 5);
+    admin.addCash(Cash(Cash::Denomination::THOUSAND, 10));  // Adding 10 x 1000 KRW
+    admin.addCash(Cash(Cash::Denomination::HUNDRED, 5)); // Adding 5 x 100 KRW
+    admin.leaveMachine();
+
+    int initialCash = machine.getTotalCash();
+
+    // User pays 1000 KRW for an 600 KRW item, expecting 200 KRW in change
+    User user(machine, 0);
+    ASSERT_TRUE(user.arriveAtMachine());
+    user.insertCash(Cash(Cash::Denomination::THOUSAND, 1));
+    EXPECT_TRUE(user.selectBeverage("Water"));
+
+    EXPECT_TRUE(user.getChange());
+
+    // Expected cash after the purchase (600 KRW stays in machine, 200 KRW is returned)
+    int expectedCash = initialCash + 600;
+    EXPECT_EQ(machine.getTotalCash(), expectedCash);
+
+    user.leaveMachine();
+}
+
+TEST(UserTests, TotalCashWithExactPayment) {
+    CoutMute mute;
+
+    VendingMachine machine;
+    Admin admin(machine);
+
+    // Setup: Add cash and beverage
+    admin.arriveAtMachine();
+    admin.addBeverage("Water", 600, 5);
+    admin.addCash(Cash(Cash::Denomination::THOUSAND, 10));  // Adding 10 x 1000 KRW
+    admin.leaveMachine();
+
+    int initialCash = machine.getTotalCash();
+
+    // User pays 600 KRW (exact) for a 600 KRW item
+    User user(machine, 0);
+    ASSERT_TRUE(user.arriveAtMachine());
+    user.insertCash(Cash(Cash::Denomination::FIVE_HUNDRED, 1));
+    user.insertCash(Cash(Cash::Denomination::HUNDRED, 1));
+    EXPECT_TRUE(user.selectBeverage("Water"));
+
+    EXPECT_TRUE(user.getChange());
+
+    // Total cash should be increased by exactly 500 KRW (no change is given)
+    int expectedCash = initialCash + 600;
+    EXPECT_EQ(machine.getTotalCash(), expectedCash);
+
+    user.leaveMachine();
+}
+
+TEST(UserTests, TotalCashAfterInsufficientFundsAttempt) {
+    CoutMute mute;
+
+    VendingMachine machine;
+    Admin admin(machine);
+
+    // Setup: Add beverage
+    admin.arriveAtMachine();
+    admin.addBeverage("Cola", 1100, 5);
+    admin.leaveMachine();
+
+    int initialCash = machine.getTotalCash();
+
+    // User attempts to purchase Cola with insufficient funds (500 KRW only)
+    User user(machine, 0);
+    ASSERT_TRUE(user.arriveAtMachine());
+    user.insertCash(Cash(Cash::Denomination::FIVE_HUNDRED, 1));
+    EXPECT_FALSE(user.selectBeverage("Cola"));
+
+    EXPECT_TRUE(user.getChange());
+
+    // Total cash should remain unchanged since the purchase did not go through
+    EXPECT_EQ(machine.getTotalCash(), initialCash);
+
+    user.leaveMachine();
+}
+
+TEST(UserTests, TotalCashWithMultipleDenominationsForChange) {
+    CoutMute mute;
+
+    VendingMachine machine;
+    Admin admin(machine);
+
+    // Setup: Add cash and beverage
+    admin.arriveAtMachine();
+    admin.addBeverage("Cola", 1100, 5);
+    admin.addCash(Cash(Cash::Denomination::THOUSAND, 2));    // Adding 2 x 1000 KRW
+    admin.addCash(Cash(Cash::Denomination::FIVE_HUNDRED, 3)); // Adding 3 x 500 KRW
+    admin.addCash(Cash(Cash::Denomination::HUNDRED, 5));  // Adding 5 x 100 KRW
+    admin.leaveMachine();
+
+    int initialCash = machine.getTotalCash();
+
+    // User pays 2000 KRW for a 1200 KRW item, expecting 800 KRW in change (500 + 3 x 100)
+    User user(machine, 0);
+    ASSERT_TRUE(user.arriveAtMachine());
+    user.insertCash(Cash(Cash::Denomination::THOUSAND, 2));
+    EXPECT_TRUE(user.selectBeverage("Cola"));
+
+    EXPECT_TRUE(user.getChange());
+
+    // After the purchase, 1200 KRW stays in the machine, and 800 KRW is returned as change
+    int expectedCash = initialCash + 1100; // Only the cost of the item remains in the machine
+    EXPECT_EQ(machine.getTotalCash(), expectedCash);
+
+    user.leaveMachine();
+}
+
+TEST(UserTests, InsufficientChangeInMachine) {
+    CoutMute mute;
+
+    VendingMachine machine;
+    Admin admin(machine);
+
+    // Setup: Add beverage but not enough cash to provide change
+    admin.arriveAtMachine();
+    admin.addBeverage("Water", 600, 5);  // Beverage priced at 300 KRW
+    admin.addCash(Cash(Cash::Denomination::HUNDRED, 1));     // Only 1 x 100 KRW available
+    admin.leaveMachine();
+
+    int initialCash = machine.getTotalCash();
+
+    // User pays 1000 KRW for a 600 KRW item, expecting 700 KRW in change, but the machine only has 100 KRW
+    User user(machine, 0);
+    ASSERT_TRUE(user.arriveAtMachine());
+    user.insertCash(Cash(Cash::Denomination::THOUSAND, 1));  // Insert 1000 KRW
+
+    SCOPED_TRACE("Attempting to purchase 'Water' with insufficient change available in the machine");
+    EXPECT_TRUE(user.selectBeverage("Water"));
+
+    // Verify that the machine is unable to return the exact change and sets itself as out of order
+    EXPECT_FALSE(user.getChange());  // Expect this to return false, indicating exact change could not be provided
+
+    // After the failed change attempt, total cash should only increase by the what user gave
+    int expectedCash = initialCash + 1000;  // Only the item price is retained in the machine's balance
+    EXPECT_EQ(machine.getTotalCash(), expectedCash);
+
+    user.leaveMachine();
+}
+
+

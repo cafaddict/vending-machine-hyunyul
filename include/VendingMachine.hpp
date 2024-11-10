@@ -13,7 +13,7 @@ private:
     int m_UserInsertedAmount = 0; // Tracks the user's inserted amount for each transaction
     int m_SelectedItemPrice = 0;   // Price of the selected item
     bool m_IsOccupied = false;     // Tracks if the machine is in use
-    bool m_OutOfOrder = false;     // Tracks if the machine is out of order
+
 
 public:
     VendingMachine();
@@ -36,6 +36,7 @@ public:
     bool canReturnExactChange(int amount) const; // Check if exact change is possible
     bool returnChange();               // Return change to the user
     bool removeCash(const Cash& cash); // New method for cash removal
+    int getTotalCash() const;          // Accessor for total cash in the machine
 
     // Accessor for beverage price
     int getBeveragePrice(const std::string& name) const;

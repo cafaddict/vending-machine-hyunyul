@@ -15,10 +15,6 @@ bool VendingMachine::acquireOccupancy() {
         return false;
     }
 
-    if (m_OutOfOrder) {
-        std::cerr << "Vending machine is out of order." << std::endl;
-        return false;
-    }
 
     m_IsOccupied = true;
     return true;
@@ -206,6 +202,15 @@ void VendingMachine::deductBalance(int amount) {
         }
         if (amount == 0) break;
     }
+}
+
+// Get the total cash in the machine
+int VendingMachine::getTotalCash() const {
+    int total = 0;
+    for (const auto& [denom, count] : m_CashBalance) {
+        total += static_cast<int>(denom) * count;
+    }
+    return total;
 }
 
 // Get the price of a specific beverage by name
